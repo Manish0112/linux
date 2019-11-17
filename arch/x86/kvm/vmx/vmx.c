@@ -63,6 +63,10 @@
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
+//Start: Added for Assignment
+extern uint64_t exit_count[69];
+extern uint64_t total_exit_count;
+//end
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -5854,6 +5858,11 @@ void dump_vmcs(void)
  */
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
+//printk(KERN_INFO "Inside VMX_handle_exit\n");
+//start: Added for Assignment 2
+	int return_exit_handler=0; 
+//end: added for assignment 2
+
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
@@ -5939,8 +5948,18 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	}
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
-	    && kvm_vmx_exit_handlers[exit_reason])
-		return kvm_vmx_exit_handlers[exit_reason](vcpu);
+	    && kvm_vmx_exit_handlers[exit_reason]){
+
+//Start: Added for Assignment 2
+	
+		return_exit_handler = kvm_vmx_exit_handlers[exit_reason](vcpu);
+
+		exit_count[exit_reason]++;
+		total_exit_count++;
+
+//End: Added for assignment 2
+		return return_exit_handler;
+	}
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
 				exit_reason);
