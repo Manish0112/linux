@@ -26,7 +26,7 @@
 #include <vmx/vmx.h>
 //Changes For Assignment 2 : Start
 uint64_t total_exit_count=0;
-uint64_t exit_count[65] = {0};
+uint64_t exit_count[69] = {0};
 EXPORT_SYMBOL(total_exit_count);
 EXPORT_SYMBOL(exit_count);
 //exit name: start
@@ -1136,7 +1136,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
 	}else if(eax == 0x4FFFFFFD){		
 		
-		printk(KERN_INFO "\tExit_Name\t\t\t\tExit No\t\tExit_count");
+		printk(KERN_INFO "\tExit_Name\t\t\t\t\tExit No\t\tExit_count");
 		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
 
 		//printk(KERN_INFO "Value of eax :%llu\n",eax);
@@ -1145,7 +1145,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		//printk(KERN_INFO "Value of Total Exit Count :%llu\n",total_exit_count);
 		for(i=0;i<69;i++){
 			if((strstr(exit_name[i], "_NA") == NULL) && (strstr(exit_name[i],"INVALID_VALUE") == NULL)){
-			printk(KERN_INFO "\t%s\t\t\t\t%llu\t\t%llu\n",exit_name[i],i,exit_count[i]);
+			printk(KERN_INFO "\t%-30s \t\t\t\t %llu \t\t %llu\n",exit_name[i],i,exit_count[i]);
 			}
 		}
 		if((int) ecx < 69 && (int) ecx > -1 && (strstr(exit_name[ecx], "_NA") == NULL) && (strstr(exit_name[ecx], 			"INVALID_VALUE") == NULL)){
