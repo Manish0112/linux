@@ -66,6 +66,8 @@ MODULE_LICENSE("GPL");
 //Start: Added for Assignment
 extern uint64_t exit_count[69];
 extern uint64_t total_exit_count;
+extern uint64_t total_exit_time;
+extern uint64_t exit_countwise_time[69];
 //end
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
@@ -5949,16 +5951,36 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason]){
-
 //Start: Added for Assignment 2
-	
+		uint32_t low,high;
+		uint64_t start,end,exit_handle_time=0;
+		int i;
+
+		asm volatile ("rdtsc": "=a" (low), "=d" (high));
+		start = ( ((uint64_t)high) << (uint32_t)32 ) | (((uint64_t)low));
+
 		return_exit_handler = kvm_vmx_exit_handlers[exit_reason](vcpu);
 
+
+		asm volatile ("rdtsc": "=a" (low), "=d" (high));
+		end = ( ((uint64_t)high) << (uint32_t)32 ) | (((uint64_t)low));
+
+		exit_handle_time = (end - start);
+//temp code
+//exit_handle_time = (1000 + exit_reason);
+
+		if(exit_handle_time <= 0){
+			return return_exit_handler;
+		}
+		
 		exit_count[exit_reason]++;
 		total_exit_count++;
+//Assignment 3
+		total_exit_time+=exit_handle_time;
+		exit_countwise_time[exit_reason]+=exit_handle_time;
+	
 
 //End: Added for assignment 2
-		return return_exit_handler;
 	}
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",

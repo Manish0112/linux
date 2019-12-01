@@ -27,8 +27,14 @@
 //Changes For Assignment 2 : Start
 uint64_t total_exit_count=0;
 uint64_t exit_count[69] = {0};
+//Assignment 3
+uint64_t exit_countwise_time[69] = {0};
+uint64_t total_exit_time=0;
+
 EXPORT_SYMBOL(total_exit_count);
 EXPORT_SYMBOL(exit_count);
+EXPORT_SYMBOL(total_exit_time);
+EXPORT_SYMBOL(exit_countwise_time);
 //exit name: start
 static char exit_name[69][100] = {
 	"EXCEPTION_NMI",
@@ -1121,15 +1127,26 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
 	int i;
+	uint64_t per_exit_time=0;
 
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
-		
+//printk(KERN_INFO "-##-");
+//printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+//		printk(KERN_INFO "Value of eax :%llu\n",eax);
+//		printk(KERN_INFO "Value of ecx :%llu\n",ecx);
+//		printk(KERN_INFO "Value of vcpu :%llu\n",vcpu);
+//		printk(KERN_INFO "Value of Total Exit Count :%llu\n",total_exit_count);
+//		printk(KERN_INFO "Total Exits Time(Cycle) spent :%llu\n",total_exit_time);
+//		printk(KERN_INFO "\t%-30s \t\t\t\t %llu \t\t %llu\n",exit_name[ecx],ecx,exit_countwise_time[ecx]);
+//printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+	
 	if(eax == 0x4FFFFFFF){
-		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+		printk(KERN_INFO "Value of ecx :%llu\n",ecx);
+		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);		
 		eax=total_exit_count;
 		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
 		printk(KERN_INFO "Total Exits :%llu\n",total_exit_count);
@@ -1140,7 +1157,7 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
 
 		//printk(KERN_INFO "Value of eax :%llu\n",eax);
-		//printk(KERN_INFO "Value of ecx :%llu\n",ecx);
+		printk(KERN_INFO "Value of ecx :%llu\n",ecx);
 		//printk(KERN_INFO "Value of vcpu :%llu\n",vcpu);
 		//printk(KERN_INFO "Value of Total Exit Count :%llu\n",total_exit_count);
 		for(i=0;i<69;i++){
@@ -1164,10 +1181,57 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 			edx= 0xFFFFFFFF;
 		}
 
-	}
-	else{
+	}else if(eax == 0x4FFFFFFE){
+//	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);		
+		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+		printk(KERN_INFO "Total Exits Time(Cycle) spent :%llu\n",total_exit_time);
+		ebx = (u32)(total_exit_time>>32); 
+		ecx = (u32)(total_exit_time);		
+		printk(KERN_INFO "Total Exits Time(Cycle) spent : Value of EBX :%u\n",ebx);
+		printk(KERN_INFO "Total Exits Time(Cycle) spent : Value of ECX :%u\n",ecx);
+		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+
+	}else if(eax == 0x4FFFFFFC){		
+		//Exit countwise total time spent
+		printk(KERN_INFO "\tExit_Name\t\t\t\t\tExit No\t\tExit_countwise_Time");
+		printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+
+		for(i=0;i<69;i++){
+			if((strstr(exit_name[i], "_NA") == NULL) && (strstr(exit_name[i],"INVALID_VALUE") == NULL)){
+			printk(KERN_INFO "\t%-30s \t\t\t\t %llu \t\t %llu\n",exit_name[i],i,exit_countwise_time[i]);
+			}
+		}
+		if((int) ecx < 69 && (int) ecx > -1 && (strstr(exit_name[ecx], "_NA") == NULL) && (strstr(exit_name[ecx], 			"INVALID_VALUE") == NULL)){
+			printk(KERN_INFO "Total Exits Time(Cycle) spent : value of ecx :%u\n",ecx);
+			printk(KERN_INFO "Total Exits Time(Cycle) spent : exit_name[ecx] :%s\n",exit_name[ecx]);
+			printk(KERN_INFO "Total Exits Time(Cycle) spent : exit_countwise_time[ecx] :%llu\n",exit_countwise_time[ecx]);
+			per_exit_time=exit_countwise_time[ecx];
+			//eax=exit_countwise_time[ecx];
+			ebx = (u32)(per_exit_time>>32); 
+			ecx = (u32)(per_exit_time);
+			//printk(KERN_INFO "\tExit_Name\t\t\t\t\tExit No\t\tExit_countwise_Time");
+			//printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+			
+			//printk(KERN_INFO "\t%-30s \t\t\t\t %u \t\t %llu\n",exit_name[ecx],ecx,per_exit_time);
+			//printk(KERN_INFO "-------------------------------------------------------------------------------------------");
+		}
+		else if((strstr(exit_name[ecx], "_NA") != NULL)){
+			eax= 0x00000000;
+			ebx= 0x00000000;
+			ecx= 0x00000000;
+			edx= 0x00000000;
+		}
+		else{
+			eax= 0x00000000;
+			ebx= 0x00000000;
+			ecx= 0x00000000;
+			edx= 0xFFFFFFFF;
+		}
+
+	}else{
 		kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 	}
+
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
