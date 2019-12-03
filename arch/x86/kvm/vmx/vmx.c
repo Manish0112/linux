@@ -60,6 +60,7 @@
 #include "vmcs12.h"
 #include "vmx.h"
 #include "x86.h"
+#include <stdatomic.h>
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -68,7 +69,14 @@ extern uint64_t exit_count[69];
 extern uint64_t total_exit_count;
 extern uint64_t total_exit_time;
 extern uint64_t exit_countwise_time[69];
-//end
+
+atomic64_t total_exit_count_A= ATOMIC_INIT(0);
+atomic64_t total_exit_time_A= ATOMIC_INIT(0);
+
+atomic64_t exit_count_A[69]= {ATOMIC_INIT(0)};
+atomic64_t exit_countwise_time_A[69]={ATOMIC_INIT(0)};
+
+//End: Added for Assignment
 
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
@@ -5860,10 +5868,10 @@ void dump_vmcs(void)
  */
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
-//printk(KERN_INFO "Inside VMX_handle_exit\n");
-//start: Added for Assignment 2
+
+//start: Added for Assignment
 	int return_exit_handler=0; 
-//end: added for assignment 2
+//end: added for assignment
 
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
@@ -5951,36 +5959,47 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason]){
-//Start: Added for Assignment 2
-		uint32_t low,high;
+//Start: Added for Assignment
+		uint32_t l,h;
 		uint64_t start,end,exit_handle_time=0;
-		int i;
+		atomic64_t exit_handle_time_A= ATOMIC_INIT(0);
+		atomic64_t start_A= ATOMIC_INIT(0);
+		atomic64_t end_A= ATOMIC_INIT(0);
 
-		asm volatile ("rdtsc": "=a" (low), "=d" (high));
-		start = ( ((uint64_t)high) << (uint32_t)32 ) | (((uint64_t)low));
-
+		asm volatile ("rdtsc": "=a" (l), "=d" (h));
+		start = ( ((uint64_t)h) << (uint32_t)32 ) | (((uint64_t)l));
+		atomic64_set(&start_A,start);
 		return_exit_handler = kvm_vmx_exit_handlers[exit_reason](vcpu);
 
 
-		asm volatile ("rdtsc": "=a" (low), "=d" (high));
-		end = ( ((uint64_t)high) << (uint32_t)32 ) | (((uint64_t)low));
+		asm volatile ("rdtsc": "=a" (l), "=d" (h));
+		end = ( ((uint64_t)h) << (uint32_t)32 ) | (((uint64_t)l));
+		atomic64_set(&end_A,end);
 
-		exit_handle_time = (end - start);
-//temp code
-//exit_handle_time = (1000 + exit_reason);
+		exit_handle_time = (atomic64_read(&end_A) - atomic64_read(&start_A));
+		atomic64_set(&exit_handle_time_A,exit_handle_time);
 
 		if(exit_handle_time <= 0){
 			return return_exit_handler;
 		}
-		
-		exit_count[exit_reason]++;
-		total_exit_count++;
-//Assignment 3
-		total_exit_time+=exit_handle_time;
-		exit_countwise_time[exit_reason]+=exit_handle_time;
-	
 
-//End: Added for assignment 2
+		//Total exits
+		atomic64_inc(&total_exit_count_A);
+		total_exit_count=atomic64_read(&total_exit_count_A);		
+
+		//Total Time spent for exit Handling
+		atomic64_add(atomic64_read(&exit_handle_time_A),&total_exit_time_A);
+		total_exit_time=atomic64_read(&total_exit_time_A);
+
+		//Total exit count per exit
+		atomic64_inc(&exit_count_A[exit_reason]);
+		exit_count[exit_reason]=atomic64_read(&exit_count_A[exit_reason]);
+
+		//Total Time spent for exit Handling per exit
+		atomic64_add(atomic64_read(&exit_handle_time_A),&exit_countwise_time_A[exit_reason]);
+		exit_countwise_time[exit_reason]=atomic64_read(&exit_countwise_time_A[exit_reason]);
+
+//End: Added for assignment
 	}
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
